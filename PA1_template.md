@@ -10,7 +10,7 @@ Firstly, we set global options and preload **dplyr** and **ggplot2** packages.
 
 ```r
 knitr::opts_chunk$set( echo = TRUE )
-library(dplyr); library("ggplot2")
+library(dplyr); library("ggplot2"); library(scales)
 ```
 
 ## Loading and preprocessing the data
@@ -58,6 +58,12 @@ From the results, we find that the mean of the total number of steps taken per d
 ```r
 meanSteps <- function(df){
         stepsIn5min <-  df%>% group_by( interval) %>% summarise( steps_per_interval= mean( steps, na.rm = TRUE ))
+        #add a new column, time
+        stepsIn5min$time <- formatC(stepsIn5min$interval, width = 4, format = "d", flag = "0")
+        #insert ":"" between hours and minutes
+        stepsIn5min$time <- sub("([[:digit:]]{2,2})$", ":\\1", stepsIn5min$time)
+        #transform time into POSIXct type.
+        stepsIn5min$time <- as.POSIXct( stepsIn5min$time, format="%H:%M")
         stepsIn5min
 }
 
@@ -71,10 +77,22 @@ g + geom_line( size = 0.8 ) + labs(title=title, x=xlab, y=ylab)+theme_grey()
 <img src="figure/unnamed-chunk-2-1.png" title="plot of chunk unnamed-chunk-2" alt="plot of chunk unnamed-chunk-2" style="display: block; margin: auto;" />
 
 ```r
+#real time series plot
+g <- ggplot(stepsIn5min, aes( time, steps_per_interval ))
+mytimezone <- Sys.timezone()
+g + geom_line( size = 0.8 ) + labs(title=title, x="time", y=ylab)+
+        scale_x_datetime( labels= date_format("%H:%M", tz = mytimezone ))
+```
+
+<img src="figure/unnamed-chunk-2-2.png" title="plot of chunk unnamed-chunk-2" alt="plot of chunk unnamed-chunk-2" style="display: block; margin: auto;" />
+
+```r
 maxsteps <- max(stepsIn5min$steps_per_interval)
 intervalMaxSteps <- stepsIn5min$interval[which.max(stepsIn5min$steps_per_interval)]
 ```
-Identifier **835** of 5-minute interval, on average across all the days in the dataset, contains the maximum number of steps.  And the corresponding maximum number of steps is **206.170**.
+When I look the values of interval varible carefully, such as 0 5 10...55 100 ..., I realize that this sequence means 00:00 00:05 00:10...00:55 01:00 .... So we can transform this sequece into date-time type variable, time, and draw a real time series just showed above. Since the interval variable is not a equal-difference squence, time variable may be a better choice.
+
+Identifier **835** of 5-minute interval(i.e. time **8:35-8:40**), on average across all the days in the dataset, contains the maximum number of steps.  And the corresponding maximum number of steps is **206.170**.
 
 
 ## Imputing missing values
@@ -152,4 +170,14 @@ g + geom_line( size= 0.8 ) +facet_grid( type ~ .) +
 ```
 
 <img src="figure/unnamed-chunk-3-1.png" title="plot of chunk unnamed-chunk-3" alt="plot of chunk unnamed-chunk-3" style="display: block; margin: auto;" />
-We use **ggplot2** to draw a panel plot containing a time series plot of the 5-minute interval (x-axis) and the average number of steps taken, averaged across all weekday days or weekend days (y-axis). The figure above shows that there is something different in activity patterns between weekdays and weekends. In weekdays people may take more steps in **Interval 500-800**, while in weekend people may take more steps in **Interval 1000-2000**.
+
+```r
+#real time series plot
+g <- ggplot(uniondf, aes( time, steps_per_interval))
+g + geom_line( size= 0.8 ) +facet_grid( type ~ .) +
+        labs(title=title, x="time", y=ylab)+
+        scale_x_datetime( labels= date_format("%H:%M", tz = mytimezone ))
+```
+
+<img src="figure/unnamed-chunk-3-2.png" title="plot of chunk unnamed-chunk-3" alt="plot of chunk unnamed-chunk-3" style="display: block; margin: auto;" />
+We use **ggplot2** to draw a panel plot containing a time series plot of the 5-minute interval (x-axis) and the average number of steps taken, averaged across all weekday days or weekend days (y-axis). The figure above shows that there is something different in activity patterns between weekdays and weekends. In weekdays people may take more steps in **Interval 500-800**,i.e.**5:00-8:00**, while in weekend people may take more steps in **Interval 1000-2000**, i.e.**10:00-20:00**.
